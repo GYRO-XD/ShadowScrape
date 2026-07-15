@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 ShadowScrape v4.0 - Stealth Web Scraping Framework
-Interface Style: Dark Theme with Rich Colors
+Optimized for Termux with Rich Tables
 Author: GYRO-XD
 """
 
@@ -29,19 +29,20 @@ from rich.columns import Columns
 from rich import box
 from bs4 import BeautifulSoup
 
+# Initialize console with Termux-friendly settings
 console = Console()
 
 # Import user agent database
 try:
     from user_agents import user_agent_db
 except ImportError:
-    # Fallback if user_agents.py doesn't exist
+    # Fallback user agents
     class UserAgentDB:
         def __init__(self):
             self.user_agents = [
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/17.2 Safari/605.1.15",
             ]
         def get_random(self): return random.choice(self.user_agents)
         def count(self): return len(self.user_agents)
@@ -76,59 +77,50 @@ class ShadowScrape:
         # Set initial user agent
         self.session.headers.update({'User-Agent': self.ua_db.get_random()})
     
-    def display_header(self):
-        """Display header like in screenshot"""
-        header = f"""
-╔══════════════════════════════════════════════════════════════════╗
-║                                                                  ║
-║   ███████╗██╗  ██╗ █████╗ ██████╗  ██████╗ ██╗    ██╗███████╗   ║
-║   ██╔════╝██║  ██║██╔══██╗██╔══██╗██╔═══██╗██║    ██║██╔════╝   ║
-║   ███████╗███████║███████║██║  ██║██║   ██║██║ █╗ ██║█████╗     ║
-║   ╚════██║██╔══██║██╔══██║██║  ██║██║   ██║██║███╗██║██╔══╝     ║
-║   ███████║██║  ██║██║  ██║██████╔╝╚██████╔╝╚███╔███╔╝███████╗   ║
-║   ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝  ╚═════╝  ╚══╝╚══╝ ╚══════╝   ║
-║                                                                  ║
-║            STEALTH WEB SCRAPING FRAMEWORK v4.0                    ║
-║                                                                  ║
-╚══════════════════════════════════════════════════════════════════╝
-"""
-        console.print(Panel(header, style="bold cyan", box=box.DOUBLE))
+    def display_stats(self):
+        """Display statistics using Rich table"""
+        stats_table = Table(title="📊 STATISTICS", box=box.HEAVY, style="bold cyan")
+        stats_table.add_column("Metric", style="yellow")
+        stats_table.add_column("Value", style="green")
         
-        # Stats like in screenshot
-        stats = f"""
-╔══════════════════════════════════════════════════════════════════╗
-║  [bold cyan]📊 STATISTICS[/]                                       ║
-╠══════════════════════════════════════════════════════════════════╣
-║  [yellow]User Agents:[/] {self.ua_db.count()}    [yellow]Rotating:[/] {'ON' if self.rotate_on_every_request else 'OFF'}
-║  [yellow]Success:[/] {self.success_count}    [yellow]Failed:[/] {self.fail_count}
-║  [yellow]Total Attempts:[/] {self.total_attempts}    [yellow]Results:[/] {len(self.results)}
-╚══════════════════════════════════════════════════════════════════╝
-"""
-        console.print(Panel(stats, style="dim", box=box.HEAVY))
+        stats_table.add_row("User Agents", str(self.ua_db.count()))
+        stats_table.add_row("Rotating", "ON" if self.rotate_on_every_request else "OFF")
+        stats_table.add_row("Success", str(self.success_count))
+        stats_table.add_row("Failed", str(self.fail_count))
+        stats_table.add_row("Total Attempts", str(self.total_attempts))
+        stats_table.add_row("Results", str(len(self.results)))
+        
+        console.print(stats_table)
     
     def display_menu(self):
-        """Display menu like in screenshot"""
-        menu = """
-╔══════════════════════════════════════════════════════════════════╗
-║  [bold yellow]🎯 MAIN MENU[/]                                      ║
-╠══════════════════════════════════════════════════════════════════╣
-║  [cyan]1.[/] Scrape Single URL     [cyan]8.[/] View Results           ║
-║  [cyan]2.[/] Scrape Multiple URLs  [cyan]9.[/] Show User Agents       ║
-║  [cyan]3.[/] Crawl Website         [cyan]10.[/] Save Agent Database    ║
-║  [cyan]4.[/] Search Emails         [cyan]11.[/] Load Agent Database    ║
-║  [cyan]5.[/] Search Social Links   [cyan]12.[/] Toggle Agent Rotation  ║
-║  [cyan]6.[/] Search Phones         [cyan]13.[/] Clear Results          ║
-║  [cyan]7.[/] Export Results        [cyan]14.[/] Exit                   ║
-╚══════════════════════════════════════════════════════════════════╝
-"""
-        console.print(Panel(menu, style="white", box=box.HEAVY))
+        """Display menu using Rich table"""
+        menu_table = Table(title="🎯 MAIN MENU", box=box.HEAVY, style="bold yellow")
+        menu_table.add_column("Option", style="cyan", width=4)
+        menu_table.add_column("Tool", style="green", width=25)
+        menu_table.add_column("Option", style="cyan", width=4)
+        menu_table.add_column("Tool", style="green", width=25)
+        
+        menu_items = [
+            ("1", "Scrape Single URL", "8", "View Results"),
+            ("2", "Scrape Multiple URLs", "9", "Show User Agents"),
+            ("3", "Crawl Website", "10", "Save Agent Database"),
+            ("4", "Search Emails", "11", "Load Agent Database"),
+            ("5", "Search Social Links", "12", "Toggle Agent Rotation"),
+            ("6", "Search Phones", "13", "Clear Results"),
+            ("7", "Export Results", "14", "Exit"),
+        ]
+        
+        for item in menu_items:
+            menu_table.add_row(item[0], item[1], item[2], item[3])
+        
+        console.print(menu_table)
         
         # Show current agent
         current_ua = self.session.headers.get('User-Agent', 'Unknown')
         info = self.ua_db.get_info(current_ua)
-        console.print(f"\n[dim]🔒 Current Agent: {info['browser']} {info['version']} on {info['os']}[/dim]")
+        console.print(f"\n[dim]🔒 Agent: {info['browser']} {info['version']} on {info['os']}[/dim]")
         console.print(f"[dim]📊 Total Agents: {self.ua_db.count()}[/dim]")
-        console.print(f"[dim]💾 Results: {len(self.results)} pages scraped[/dim]")
+        console.print(f"[dim]💾 Results: {len(self.results)} pages[/dim]")
     
     def get_random_headers(self, category=None):
         """Get random headers with user agent"""
@@ -140,28 +132,12 @@ class ShadowScrape:
         headers = {
             'User-Agent': ua,
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': random.choice(['en-US,en;q=0.9', 'en-GB,en;q=0.8', 'en-US,en;q=0.9,fr;q=0.8']),
+            'Accept-Language': random.choice(['en-US,en;q=0.9', 'en-GB,en;q=0.8']),
             'Accept-Encoding': 'gzip, deflate, br',
             'Connection': 'keep-alive',
             'Upgrade-Insecure-Requests': '1',
-            'Sec-Fetch-Dest': 'document',
-            'Sec-Fetch-Mode': 'navigate',
-            'Sec-Fetch-Site': 'none',
-            'Sec-Fetch-User': '?1',
             'Cache-Control': 'max-age=0',
         }
-        
-        # Add platform-specific headers
-        if 'Windows' in ua:
-            headers['sec-ch-ua-platform'] = '"Windows"'
-        elif 'Macintosh' in ua:
-            headers['sec-ch-ua-platform'] = '"macOS"'
-        elif 'Linux' in ua and 'Android' not in ua:
-            headers['sec-ch-ua-platform'] = '"Linux"'
-        elif 'Android' in ua:
-            headers['sec-ch-ua-platform'] = '"Android"'
-        elif 'iPhone' in ua or 'iPad' in ua:
-            headers['sec-ch-ua-platform'] = '"iOS"'
         
         return headers
     
@@ -184,24 +160,19 @@ class ShadowScrape:
                 
                 if response.status_code == 200:
                     self.success_count += 1
-                    # Display like in screenshot
-                    console.print(f"[green]✓[/] [dim]{url}[/] [yellow]→[/] [cyan]{response.status_code}[/]")
+                    console.print(f"[green]✓[/] [dim]{url[:60]}[/] [yellow]→[/] [cyan]{response.status_code}[/]")
                     return response
                 elif response.status_code in [403, 429]:
-                    console.print(f"[red]⚠[/] [dim]{url}[/] [yellow]→[/] [red]{response.status_code} (Rate Limited)[/]")
-                    self.delay_min += 0.3
-                    self.delay_max += 0.5
+                    console.print(f"[red]⚠[/] [dim]{url[:60]}[/] [yellow]→[/] [red]{response.status_code}[/]")
                     time.sleep(random.uniform(5, 10))
                 elif response.status_code == 404:
-                    console.print(f"[red]✗[/] [dim]{url}[/] [yellow]→[/] [red]{response.status_code} (Not Found)[/]")
+                    console.print(f"[red]✗[/] [dim]{url[:60]}[/] [yellow]→[/] [red]{response.status_code}[/]")
                     return None
-                else:
-                    console.print(f"[yellow]⚠[/] [dim]{url}[/] [yellow]→[/] [yellow]{response.status_code}[/]")
                     
             except Exception as e:
                 self.fail_count += 1
                 if attempt == retries - 1:
-                    console.print(f"[red]✗[/] [dim]{url}[/] [yellow]→[/] [red]{str(e)[:50]}[/]")
+                    console.print(f"[red]✗[/] [dim]{url[:60]}[/] [yellow]→[/] [red]{str(e)[:30]}[/]")
                     return None
                 time.sleep(random.uniform(2, 5))
         
@@ -224,12 +195,12 @@ class ShadowScrape:
         return links
     
     def extract_emails(self, html):
-        """Extract email addresses"""
+        """Extract email addresses using re"""
         email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
         return list(set(re.findall(email_pattern, html)))
     
     def extract_phones(self, html):
-        """Extract phone numbers"""
+        """Extract phone numbers using re"""
         phone_patterns = [
             r'\+?\d{1,3}[-.\s]?\(?\d{1,4}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}',
             r'\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}',
@@ -241,7 +212,7 @@ class ShadowScrape:
         return list(set(phones))
     
     def extract_social_links(self, html):
-        """Extract social media links"""
+        """Extract social media links using re"""
         social_patterns = {
             'facebook': r'https?://(?:www\.)?facebook\.com/[a-zA-Z0-9.]+',
             'twitter': r'https?://(?:www\.)?twitter\.com/[a-zA-Z0-9_]+',
@@ -249,8 +220,6 @@ class ShadowScrape:
             'linkedin': r'https?://(?:www\.)?linkedin\.com/(?:in|company)/[a-zA-Z0-9_-]+',
             'youtube': r'https?://(?:www\.)?youtube\.com/(?:c|channel|user)/[a-zA-Z0-9_-]+',
             'github': r'https?://(?:www\.)?github\.com/[a-zA-Z0-9_-]+',
-            'reddit': r'https?://(?:www\.)?reddit\.com/(?:r|u)/[a-zA-Z0-9_-]+',
-            'tiktok': r'https?://(?:www\.)?tiktok\.com/@[a-zA-Z0-9_.]+'
         }
         
         social_links = {}
@@ -268,9 +237,6 @@ class ShadowScrape:
             'description': '',
             'keywords': '',
             'author': '',
-            'og_title': '',
-            'og_description': '',
-            'og_image': ''
         }
         
         if soup.title:
@@ -278,7 +244,6 @@ class ShadowScrape:
         
         for meta in soup.find_all('meta'):
             name = meta.get('name', '').lower()
-            property_ = meta.get('property', '').lower()
             content = meta.get('content', '')
             
             if name == 'description':
@@ -287,18 +252,12 @@ class ShadowScrape:
                 metadata['keywords'] = content
             elif name == 'author':
                 metadata['author'] = content
-            elif property_ == 'og:title':
-                metadata['og_title'] = content
-            elif property_ == 'og:description':
-                metadata['og_description'] = content
-            elif property_ == 'og:image':
-                metadata['og_image'] = content
         
         return metadata
     
     def scrape_page(self, url, depth=0, category=None):
         """Scrape a single page"""
-        console.print(f"[cyan]📄 Scraping: {url}[/]")
+        console.print(f"[cyan]📄 Scraping: {url[:60]}...[/]")
         
         response = self.fetch_page(url, category=category)
         if not response:
@@ -316,23 +275,18 @@ class ShadowScrape:
             'description': metadata['description'],
             'keywords': metadata['keywords'],
             'author': metadata['author'],
-            'og_title': metadata['og_title'],
-            'og_description': metadata['og_description'],
-            'og_image': metadata['og_image'],
             'links': self.extract_links(html, url),
             'emails': self.extract_emails(html),
             'phones': self.extract_phones(html),
             'social': self.extract_social_links(html),
             'text_preview': soup.get_text()[:500].strip(),
-            'images': [img.get('src') for img in soup.find_all('img') if img.get('src')],
             'depth': depth,
-            'status_code': response.status_code
         }
         
         return data
     
     def crawl_website(self, start_url, max_pages=50, max_depth=3, threads=5, category=None):
-        """Crawl entire website with progress like screenshot"""
+        """Crawl entire website"""
         console.print(f"\n[bold yellow]🌐 Starting crawl: {start_url}[/]")
         console.print(f"[dim]📊 Max: {max_pages} pages | Depth: {max_depth} | Threads: {threads}[/]")
         
@@ -379,9 +333,16 @@ class ShadowScrape:
         self.results = results
         console.print(f"\n[green]✅ Scraped {len(results)} pages[/]")
         
-        # Display like in screenshot - Result saved
-        result_file = f"/sdcard/CRACK/RESULT/{datetime.now().strftime('%d-%B-%Y')}.txt"
-        console.print(f"[cyan]Result save in[/]\n[bold]{result_file}[/]")
+        # Save result
+        result_file = f"CRACK/RESULT/{datetime.now().strftime('%d-%B-%Y')}.txt"
+        with open(result_file, 'w') as f:
+            for data in results:
+                f.write(f"URL: {data.get('url', '')}\n")
+                f.write(f"Title: {data.get('title', '')}\n")
+                f.write(f"Emails: {', '.join(data.get('emails', []))}\n")
+                f.write("-" * 40 + "\n")
+        
+        console.print(f"[cyan]Result saved in[/]\n[bold]{result_file}[/]")
         console.print(f"\n[bold yellow]Crack keeps Going! Mancing Jackpot Lagi Boss Xora[/]")
         
         return results
@@ -412,15 +373,20 @@ class ShadowScrape:
                         if data:
                             results.append(data)
                     except Exception as e:
-                        console.print(f"[red]❌ Error scraping {url}: {e}[/]")
+                        console.print(f"[red]❌ Error: {e}[/]")
                     progress.update(task, advance=1)
         
         self.results = results
         console.print(f"\n[green]✅ Scraped {len(results)} URLs[/]")
         
-        # Display like in screenshot
-        result_file = f"/sdcard/CRACK/RESULT/{datetime.now().strftime('%d-%B-%Y')}.txt"
-        console.print(f"[cyan]Result save in[/]\n[bold]{result_file}[/]")
+        result_file = f"CRACK/RESULT/{datetime.now().strftime('%d-%B-%Y')}.txt"
+        with open(result_file, 'w') as f:
+            for data in results:
+                f.write(f"URL: {data.get('url', '')}\n")
+                f.write(f"Title: {data.get('title', '')}\n")
+                f.write("-" * 40 + "\n")
+        
+        console.print(f"[cyan]Result saved in[/]\n[bold]{result_file}[/]")
         console.print(f"\n[bold yellow]Crack keeps Going! Mancing Jackpot Lagi Boss Xora[/]")
         
         return results
@@ -454,33 +420,26 @@ class ShadowScrape:
         return all_social
     
     def display_user_info(self):
-        """Display user info like in screenshot"""
+        """Display user info using Rich table"""
         if not self.results:
             return
         
-        console.print("\n[bold cyan]📋 FERSONAL INFO ID[/]")
-        console.print("=" * 50)
+        console.print("\n[bold cyan]📋 PERSONAL INFO[/]")
+        
+        info_table = Table(box=box.HEAVY)
+        info_table.add_column("Field", style="yellow")
+        info_table.add_column("Value", style="green")
         
         for i, data in enumerate(self.results[:5]):
-            console.print(f"\n[bold green]Fullname:[/] {data.get('author', 'Unknown')}")
-            console.print(f"[bold green]User ID:[/] {i+1}")
-            console.print(f"[bold green]Years:[/] {datetime.now().year - i}")
-            console.print(f"[bold green]Friends:[/] {random.randint(50, 500)} teman")
-            console.print(f"[bold green]Password:[/] {data.get('author', 'user')}{random.randint(100, 999)}")
-            console.print(f"[dim]UserAgent: {self.session.headers.get('User-Agent', 'Unknown')[:80]}...[/dim]")
-            console.print("-" * 40)
+            info_table.add_row("Fullname", data.get('author', f'User_{i+1}'))
+            info_table.add_row("User ID", f"10000{i+1}")
+            info_table.add_row("Years", str(2012 + i))
+            info_table.add_row("Friends", f"{random.randint(50, 500)} teman")
+            info_table.add_row("Password", f"{data.get('author', 'user')}{random.randint(100, 999)}")
+            info_table.add_row("UserAgent", self.session.headers.get('User-Agent', 'Unknown')[:60] + "...")
+            info_table.add_row("", "")
         
-        # Save result like in screenshot
-        result_file = f"/sdcard/CRACK/RESULT/{datetime.now().strftime('%d-%B-%Y')}.txt"
-        with open("CRACK/RESULT/result.txt", "w") as f:
-            for data in self.results:
-                f.write(f"Fullname: {data.get('author', 'Unknown')}\n")
-                f.write(f"Emails: {', '.join(data.get('emails', []))}\n")
-                f.write(f"Phones: {', '.join(data.get('phones', []))}\n")
-                f.write("-" * 40 + "\n")
-        
-        console.print(f"\n[cyan]Result save in[/]\n[bold]{result_file}[/]")
-        console.print(f"\n[bold yellow]Crack keeps Going! Mancing Jackpot Lagi Boss Xora[/]")
+        console.print(info_table)
     
     def export_json(self, filename=None):
         """Export results to JSON"""
@@ -512,7 +471,7 @@ class ShadowScrape:
         
         with open(filename, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
-            writer.writerow(['URL', 'Title', 'Description', 'Emails', 'Phones', 'Social', 'Depth'])
+            writer.writerow(['URL', 'Title', 'Description', 'Emails', 'Phones'])
             
             for data in self.results:
                 writer.writerow([
@@ -520,9 +479,7 @@ class ShadowScrape:
                     data.get('title', ''),
                     data.get('description', ''),
                     ', '.join(data.get('emails', [])),
-                    ', '.join(data.get('phones', [])),
-                    json.dumps(data.get('social', {})),
-                    data.get('depth', 0)
+                    ', '.join(data.get('phones', []))
                 ])
         
         console.print(f"[green]✅ Exported to: {filename}[/]")
@@ -552,15 +509,6 @@ class ShadowScrape:
             )
         ''')
         
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS emails (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                page_id INTEGER,
-                email TEXT,
-                FOREIGN KEY (page_id) REFERENCES pages(id)
-            )
-        ''')
-        
         for data in self.results:
             cursor.execute('''
                 INSERT INTO pages (url, title, description, content, depth, timestamp)
@@ -573,11 +521,6 @@ class ShadowScrape:
                 data.get('depth', 0),
                 data.get('timestamp', '')
             ))
-            page_id = cursor.lastrowid
-            
-            for email in data.get('emails', []):
-                cursor.execute('INSERT INTO emails (page_id, email) VALUES (?, ?)',
-                             (page_id, email))
         
         conn.commit()
         conn.close()
@@ -586,20 +529,20 @@ class ShadowScrape:
         return filename
     
     def show_results(self):
-        """Display results in table"""
+        """Display results using Rich table"""
         if not self.results:
             console.print("[yellow]⚠️ No results to display[/]")
             return
         
-        table = Table(title=f"Scraping Results ({len(self.results)} pages)", box=box.HEAVY)
-        table.add_column("URL", style="cyan")
-        table.add_column("Title", style="green")
-        table.add_column("Emails", style="yellow")
-        table.add_column("Phones", style="magenta")
+        table = Table(title=f"📊 Scraping Results ({len(self.results)} pages)", box=box.HEAVY)
+        table.add_column("URL", style="cyan", max_width=30)
+        table.add_column("Title", style="green", max_width=25)
+        table.add_column("Emails", style="yellow", max_width=20)
+        table.add_column("Phones", style="magenta", max_width=15)
         
         for data in self.results[:10]:
             table.add_row(
-                data.get('url', '')[:40],
+                data.get('url', '')[:30],
                 data.get('title', '')[:25],
                 ', '.join(data.get('emails', [])[:2]),
                 ', '.join(data.get('phones', [])[:2])
@@ -607,24 +550,31 @@ class ShadowScrape:
         
         console.print(table)
         
+        # Statistics
         total_emails = sum(len(d.get('emails', [])) for d in self.results)
         total_phones = sum(len(d.get('phones', [])) for d in self.results)
         
-        console.print(Panel(
-            f"[bold]Statistics:[/]\n"
-            f"📄 Pages: {len(self.results)}\n"
-            f"📧 Emails: {total_emails}\n"
-            f"📱 Phones: {total_phones}\n"
-            f"🔗 Links: {sum(len(d.get('links', [])) for d in self.results)}",
-            title="Summary", box=box.HEAVY
-        ))
+        stats_table = Table(box=box.SIMPLE)
+        stats_table.add_column("📄 Pages", style="cyan")
+        stats_table.add_column("📧 Emails", style="yellow")
+        stats_table.add_column("📱 Phones", style="magenta")
+        stats_table.add_column("🔗 Links", style="green")
+        
+        stats_table.add_row(
+            str(len(self.results)),
+            str(total_emails),
+            str(total_phones),
+            str(sum(len(d.get('links', [])) for d in self.results))
+        )
+        
+        console.print(stats_table)
     
     def show_agents(self):
-        """Display user agents"""
-        table = Table(title=f"User Agent Database ({self.ua_db.count()} agents)", box=box.HEAVY)
+        """Display user agents using Rich table"""
+        table = Table(title=f"📋 User Agent Database ({self.ua_db.count()} agents)", box=box.HEAVY)
         table.add_column("Browser", style="cyan")
         table.add_column("OS", style="green")
-        table.add_column("Agent", style="white")
+        table.add_column("Agent", style="white", max_width=50)
         
         for _ in range(10):
             agent = self.ua_db.get_random()
@@ -632,17 +582,20 @@ class ShadowScrape:
             table.add_row(
                 info['browser'],
                 info['os'],
-                agent[:60] + "..." if len(agent) > 60 else agent
+                agent[:50] + "..." if len(agent) > 50 else agent
             )
         
         console.print(table)
         
-        console.print(Panel(
-            f"[bold]Agent Statistics:[/]\n"
-            f"📊 Total: {self.ua_db.count()}\n"
-            f"🔄 Rotation: {'ON' if self.rotate_on_every_request else 'OFF'}",
-            title="Statistics", box=box.HEAVY
-        ))
+        stats_table = Table(box=box.SIMPLE)
+        stats_table.add_column("📊 Total", style="cyan")
+        stats_table.add_column("🔄 Rotation", style="yellow")
+        stats_table.add_row(
+            str(self.ua_db.count()),
+            "ON" if self.rotate_on_every_request else "OFF"
+        )
+        
+        console.print(stats_table)
     
     def save_agent_db(self):
         """Save user agent database"""
@@ -655,17 +608,27 @@ class ShadowScrape:
         console.print(f"[green]✅ Loaded {self.ua_db.count()} user agents[/]")
     
     def menu(self):
-        """Main menu with interface like screenshot"""
+        """Main menu"""
         while True:
             console.clear()
-            self.display_header()
-            self.display_menu()
             
-            choice = Prompt.ask("\n[bold cyan]Select option", choices=[str(i) for i in range(1, 15)])
+            # Display header
+            console.print("[bold cyan]╔══════════════════════════════════════════════╗[/]")
+            console.print("[bold cyan]║           SHADOWSCRAPE v4.0                 ║[/]")
+            console.print("[bold cyan]║      Stealth Web Scraping Framework         ║[/]")
+            console.print("[bold cyan]╚══════════════════════════════════════════════╝[/]")
+            
+            print()
+            self.display_stats()
+            print()
+            self.display_menu()
+            print()
+            
+            choice = Prompt.ask("[bold cyan]Select option", choices=[str(i) for i in range(1, 15)])
             
             if choice == '1':
                 url = Prompt.ask("[cyan]Enter URL")
-                category = Prompt.ask("[cyan]Category (optional)", default="random")
+                category = Prompt.ask("[cyan]Category (random/windows/mac/linux/android/ios/chrome/firefox)", default="random")
                 if category == "random":
                     category = None
                 data = self.scrape_page(url, category=category)
@@ -703,10 +666,13 @@ class ShadowScrape:
                 emails = self.search_emails()
                 if emails:
                     console.print("[bold green]📧 Found emails:[/]")
+                    email_table = Table(box=box.SIMPLE)
+                    email_table.add_column("Email", style="yellow")
                     for email in emails[:20]:
-                        console.print(f"  {email}")
+                        email_table.add_row(email)
+                    console.print(email_table)
                     if len(emails) > 20:
-                        console.print(f"  ... and {len(emails) - 20} more")
+                        console.print(f"[dim]... and {len(emails) - 20} more[/]")
                 else:
                     console.print("[yellow]⚠️ No emails found[/]")
             
@@ -727,10 +693,13 @@ class ShadowScrape:
                 phones = self.search_phones()
                 if phones:
                     console.print("[bold green]📱 Found phones:[/]")
+                    phone_table = Table(box=box.SIMPLE)
+                    phone_table.add_column("Phone", style="magenta")
                     for phone in phones[:20]:
-                        console.print(f"  {phone}")
+                        phone_table.add_row(phone)
+                    console.print(phone_table)
                     if len(phones) > 20:
-                        console.print(f"  ... and {len(phones) - 20} more")
+                        console.print(f"[dim]... and {len(phones) - 20} more[/]")
                 else:
                     console.print("[yellow]⚠️ No phones found[/]")
             

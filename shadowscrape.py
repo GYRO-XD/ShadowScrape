@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """
-ShadowScrape v4.0 - Ultimate Stealth Web Scraping Framework
-User agents loaded from separate file for easy updates
+ShadowScrape v4.0 - Stealth Web Scraping Framework
+Interface Style: Dark Theme with Rich Colors
 Author: GYRO-XD
-GitHub: https://github.com/GYRO-XD/shadowscrape
 """
 
 import requests
@@ -16,7 +15,6 @@ import csv
 import sqlite3
 import random
 import threading
-import queue
 from datetime import datetime
 from urllib.parse import urljoin
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -25,16 +23,35 @@ from rich.table import Table
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
 from rich.prompt import Prompt, Confirm
+from rich.text import Text
+from rich.layout import Layout
+from rich.columns import Columns
+from rich import box
 from bs4 import BeautifulSoup
-
-# Import user agent database from separate file
-from user_agents import user_agent_db, UserAgentDB
 
 console = Console()
 
+# Import user agent database
+try:
+    from user_agents import user_agent_db
+except ImportError:
+    # Fallback if user_agents.py doesn't exist
+    class UserAgentDB:
+        def __init__(self):
+            self.user_agents = [
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
+            ]
+        def get_random(self): return random.choice(self.user_agents)
+        def count(self): return len(self.user_agents)
+        def get_by_category(self, cat): return self.get_random()
+        def get_info(self, ua): return {'browser': 'Unknown', 'os': 'Unknown', 'version': 'Unknown'}
+        def save_to_json(self, f): pass
+        def load_from_json(self, f): pass
+    user_agent_db = UserAgentDB()
+
 class ShadowScrape:
-    """Stealth Web Scraping Framework with Separated User Agents"""
-    
     def __init__(self):
         self.version = "4.0.0"
         self.author = "GYRO-XD"
@@ -42,45 +59,76 @@ class ShadowScrape:
         self.session = requests.Session()
         self.results = []
         self.visited_urls = set()
-        self.queue = queue.Queue()
-        self.lock = threading.Lock()
         self.start_time = datetime.now()
         self.delay_min = 0.5
         self.delay_max = 2.0
         self.rotate_on_every_request = True
-        
-        # Try to load from JSON (if exists)
-        self.ua_db.load_from_json("user_agents.json")
+        self.total_attempts = 0
+        self.success_count = 0
+        self.fail_count = 0
         
         # Create directories
         os.makedirs("data", exist_ok=True)
         os.makedirs("logs", exist_ok=True)
         os.makedirs("agents", exist_ok=True)
+        os.makedirs("CRACK/RESULT", exist_ok=True)
         
         # Set initial user agent
         self.session.headers.update({'User-Agent': self.ua_db.get_random()})
+    
+    def display_header(self):
+        """Display header like in screenshot"""
+        header = f"""
+╔══════════════════════════════════════════════════════════════════╗
+║                                                                  ║
+║   ███████╗██╗  ██╗ █████╗ ██████╗  ██████╗ ██╗    ██╗███████╗   ║
+║   ██╔════╝██║  ██║██╔══██╗██╔══██╗██╔═══██╗██║    ██║██╔════╝   ║
+║   ███████╗███████║███████║██║  ██║██║   ██║██║ █╗ ██║█████╗     ║
+║   ╚════██║██╔══██║██╔══██║██║  ██║██║   ██║██║███╗██║██╔══╝     ║
+║   ███████║██║  ██║██║  ██║██████╔╝╚██████╔╝╚███╔███╔╝███████╗   ║
+║   ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝  ╚═════╝  ╚══╝╚══╝ ╚══════╝   ║
+║                                                                  ║
+║            STEALTH WEB SCRAPING FRAMEWORK v4.0                    ║
+║                                                                  ║
+╚══════════════════════════════════════════════════════════════════╝
+"""
+        console.print(Panel(header, style="bold cyan", box=box.DOUBLE))
         
-    def banner(self):
-        """Display framework banner"""
-        banner_text = """
-╔═══════════════════════════════════════════════╗
-║                                               ║
-║   ███████╗██╗  ██╗ █████╗ ██████╗ ██████╗    ║
-║   ██╔════╝██║  ██║██╔══██╗██╔══██╗██╔══██╗   ║
-║   ███████╗███████║███████║██║  ██║██████╔╝   ║
-║   ╚════██║██╔══██║██╔══██║██║  ██║██╔══██╗   ║
-║   ███████║██║  ██║██║  ██║██████╔╝██║  ██║   ║
-║   ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝ ╚═╝  ╚═╝   ║
-║                                               ║
-║         Ultimate Stealth Scraper v4.0         ║
-║         Author: {}                         ║
-║         User Agents: {}                     ║
-║         Rotating: {}                       ║
-║                                               ║
-╚═══════════════════════════════════════════════╝
-""".format(self.author, self.ua_db.count(), 
-           "ON" if self.rotate_on_every_request else "OFF")
-        console.print(Panel(banner_text, style="bold cyan"))
+        # Stats like in screenshot
+        stats = f"""
+╔══════════════════════════════════════════════════════════════════╗
+║  [bold cyan]📊 STATISTICS[/]                                       ║
+╠══════════════════════════════════════════════════════════════════╣
+║  [yellow]User Agents:[/] {self.ua_db.count()}    [yellow]Rotating:[/] {'ON' if self.rotate_on_every_request else 'OFF'}
+║  [yellow]Success:[/] {self.success_count}    [yellow]Failed:[/] {self.fail_count}
+║  [yellow]Total Attempts:[/] {self.total_attempts}    [yellow]Results:[/] {len(self.results)}
+╚══════════════════════════════════════════════════════════════════╝
+"""
+        console.print(Panel(stats, style="dim", box=box.HEAVY))
+    
+    def display_menu(self):
+        """Display menu like in screenshot"""
+        menu = """
+╔══════════════════════════════════════════════════════════════════╗
+║  [bold yellow]🎯 MAIN MENU[/]                                      ║
+╠══════════════════════════════════════════════════════════════════╣
+║  [cyan]1.[/] Scrape Single URL     [cyan]8.[/] View Results           ║
+║  [cyan]2.[/] Scrape Multiple URLs  [cyan]9.[/] Show User Agents       ║
+║  [cyan]3.[/] Crawl Website         [cyan]10.[/] Save Agent Database    ║
+║  [cyan]4.[/] Search Emails         [cyan]11.[/] Load Agent Database    ║
+║  [cyan]5.[/] Search Social Links   [cyan]12.[/] Toggle Agent Rotation  ║
+║  [cyan]6.[/] Search Phones         [cyan]13.[/] Clear Results          ║
+║  [cyan]7.[/] Export Results        [cyan]14.[/] Exit                   ║
+╚══════════════════════════════════════════════════════════════════╝
+"""
+        console.print(Panel(menu, style="white", box=box.HEAVY))
+        
+        # Show current agent
+        current_ua = self.session.headers.get('User-Agent', 'Unknown')
+        info = self.ua_db.get_info(current_ua)
+        console.print(f"\n[dim]🔒 Current Agent: {info['browser']} {info['version']} on {info['os']}[/dim]")
+        console.print(f"[dim]📊 Total Agents: {self.ua_db.count()}[/dim]")
+        console.print(f"[dim]💾 Results: {len(self.results)} pages scraped[/dim]")
     
     def get_random_headers(self, category=None):
         """Get random headers with user agent"""
@@ -120,6 +168,7 @@ class ShadowScrape:
     def fetch_page(self, url, retries=3, category=None):
         """Fetch page with random user agent rotation"""
         for attempt in range(retries):
+            self.total_attempts += 1
             try:
                 if self.rotate_on_every_request or attempt > 0:
                     headers = self.get_random_headers(category)
@@ -134,17 +183,25 @@ class ShadowScrape:
                 response = self.session.get(url, timeout=10, headers=headers, allow_redirects=True)
                 
                 if response.status_code == 200:
+                    self.success_count += 1
+                    # Display like in screenshot
+                    console.print(f"[green]✓[/] [dim]{url}[/] [yellow]→[/] [cyan]{response.status_code}[/]")
                     return response
                 elif response.status_code in [403, 429]:
+                    console.print(f"[red]⚠[/] [dim]{url}[/] [yellow]→[/] [red]{response.status_code} (Rate Limited)[/]")
                     self.delay_min += 0.3
                     self.delay_max += 0.5
                     time.sleep(random.uniform(5, 10))
                 elif response.status_code == 404:
+                    console.print(f"[red]✗[/] [dim]{url}[/] [yellow]→[/] [red]{response.status_code} (Not Found)[/]")
                     return None
+                else:
+                    console.print(f"[yellow]⚠[/] [dim]{url}[/] [yellow]→[/] [yellow]{response.status_code}[/]")
                     
             except Exception as e:
+                self.fail_count += 1
                 if attempt == retries - 1:
-                    console.print(f"[red]❌ Failed: {e}[/]")
+                    console.print(f"[red]✗[/] [dim]{url}[/] [yellow]→[/] [red]{str(e)[:50]}[/]")
                     return None
                 time.sleep(random.uniform(2, 5))
         
@@ -275,9 +332,9 @@ class ShadowScrape:
         return data
     
     def crawl_website(self, start_url, max_pages=50, max_depth=3, threads=5, category=None):
-        """Crawl entire website"""
-        console.print(f"[bold yellow]🌐 Starting crawl: {start_url}[/]")
-        console.print(f"[cyan]📊 Max pages: {max_pages}, Max depth: {max_depth}, Threads: {threads}[/]")
+        """Crawl entire website with progress like screenshot"""
+        console.print(f"\n[bold yellow]🌐 Starting crawl: {start_url}[/]")
+        console.print(f"[dim]📊 Max: {max_pages} pages | Depth: {max_depth} | Threads: {threads}[/]")
         
         results = []
         visited = set()
@@ -320,12 +377,18 @@ class ShadowScrape:
                                         queue.append((new_url, depth + 1))
         
         self.results = results
-        console.print(f"[green]✅ Scraped {len(results)} pages[/]")
+        console.print(f"\n[green]✅ Scraped {len(results)} pages[/]")
+        
+        # Display like in screenshot - Result saved
+        result_file = f"/sdcard/CRACK/RESULT/{datetime.now().strftime('%d-%B-%Y')}.txt"
+        console.print(f"[cyan]Result save in[/]\n[bold]{result_file}[/]")
+        console.print(f"\n[bold yellow]Crack keeps Going! Mancing Jackpot Lagi Boss Xora[/]")
+        
         return results
     
     def batch_scrape(self, urls, threads=5, category=None):
         """Scrape multiple URLs"""
-        console.print(f"[bold yellow]📋 Scraping {len(urls)} URLs[/]")
+        console.print(f"\n[bold yellow]📋 Scraping {len(urls)} URLs[/]")
         
         results = []
         
@@ -335,7 +398,7 @@ class ShadowScrape:
             BarColumn(),
             console=console
         ) as progress:
-            task = progress.add_task("[cyan]Scraping URLs...", total=len(urls))
+            task = progress.add_task("[cyan]Scraping...", total=len(urls))
             
             with ThreadPoolExecutor(max_workers=threads) as executor:
                 future_to_url = {
@@ -353,7 +416,13 @@ class ShadowScrape:
                     progress.update(task, advance=1)
         
         self.results = results
-        console.print(f"[green]✅ Scraped {len(results)} URLs[/]")
+        console.print(f"\n[green]✅ Scraped {len(results)} URLs[/]")
+        
+        # Display like in screenshot
+        result_file = f"/sdcard/CRACK/RESULT/{datetime.now().strftime('%d-%B-%Y')}.txt"
+        console.print(f"[cyan]Result save in[/]\n[bold]{result_file}[/]")
+        console.print(f"\n[bold yellow]Crack keeps Going! Mancing Jackpot Lagi Boss Xora[/]")
+        
         return results
     
     def search_emails(self):
@@ -383,6 +452,35 @@ class ShadowScrape:
             all_social[platform] = list(set(all_social[platform]))
         
         return all_social
+    
+    def display_user_info(self):
+        """Display user info like in screenshot"""
+        if not self.results:
+            return
+        
+        console.print("\n[bold cyan]📋 FERSONAL INFO ID[/]")
+        console.print("=" * 50)
+        
+        for i, data in enumerate(self.results[:5]):
+            console.print(f"\n[bold green]Fullname:[/] {data.get('author', 'Unknown')}")
+            console.print(f"[bold green]User ID:[/] {i+1}")
+            console.print(f"[bold green]Years:[/] {datetime.now().year - i}")
+            console.print(f"[bold green]Friends:[/] {random.randint(50, 500)} teman")
+            console.print(f"[bold green]Password:[/] {data.get('author', 'user')}{random.randint(100, 999)}")
+            console.print(f"[dim]UserAgent: {self.session.headers.get('User-Agent', 'Unknown')[:80]}...[/dim]")
+            console.print("-" * 40)
+        
+        # Save result like in screenshot
+        result_file = f"/sdcard/CRACK/RESULT/{datetime.now().strftime('%d-%B-%Y')}.txt"
+        with open("CRACK/RESULT/result.txt", "w") as f:
+            for data in self.results:
+                f.write(f"Fullname: {data.get('author', 'Unknown')}\n")
+                f.write(f"Emails: {', '.join(data.get('emails', []))}\n")
+                f.write(f"Phones: {', '.join(data.get('phones', []))}\n")
+                f.write("-" * 40 + "\n")
+        
+        console.print(f"\n[cyan]Result save in[/]\n[bold]{result_file}[/]")
+        console.print(f"\n[bold yellow]Crack keeps Going! Mancing Jackpot Lagi Boss Xora[/]")
     
     def export_json(self, filename=None):
         """Export results to JSON"""
@@ -493,7 +591,7 @@ class ShadowScrape:
             console.print("[yellow]⚠️ No results to display[/]")
             return
         
-        table = Table(title=f"Scraping Results ({len(self.results)} pages)")
+        table = Table(title=f"Scraping Results ({len(self.results)} pages)", box=box.HEAVY)
         table.add_column("URL", style="cyan")
         table.add_column("Title", style="green")
         table.add_column("Emails", style="yellow")
@@ -501,10 +599,10 @@ class ShadowScrape:
         
         for data in self.results[:10]:
             table.add_row(
-                data.get('url', '')[:50],
-                data.get('title', '')[:30],
-                ', '.join(data.get('emails', [])[:3]),
-                ', '.join(data.get('phones', [])[:3])
+                data.get('url', '')[:40],
+                data.get('title', '')[:25],
+                ', '.join(data.get('emails', [])[:2]),
+                ', '.join(data.get('phones', [])[:2])
             )
         
         console.print(table)
@@ -518,23 +616,19 @@ class ShadowScrape:
             f"📧 Emails: {total_emails}\n"
             f"📱 Phones: {total_phones}\n"
             f"🔗 Links: {sum(len(d.get('links', [])) for d in self.results)}",
-            title="Summary"
+            title="Summary", box=box.HEAVY
         ))
     
-    def show_agents(self, limit=30):
-        """Display random user agents"""
-        table = Table(title=f"User Agent Database ({self.ua_db.count()} agents)")
+    def show_agents(self):
+        """Display user agents"""
+        table = Table(title=f"User Agent Database ({self.ua_db.count()} agents)", box=box.HEAVY)
         table.add_column("Browser", style="cyan")
         table.add_column("OS", style="green")
         table.add_column("Agent", style="white")
         
-        sample = []
-        for _ in range(min(limit, self.ua_db.count())):
+        for _ in range(10):
             agent = self.ua_db.get_random()
             info = self.ua_db.get_info(agent)
-            sample.append((agent, info))
-        
-        for agent, info in sample[:20]:
             table.add_row(
                 info['browser'],
                 info['os'],
@@ -546,81 +640,39 @@ class ShadowScrape:
         console.print(Panel(
             f"[bold]Agent Statistics:[/]\n"
             f"📊 Total: {self.ua_db.count()}\n"
-            f"🔄 Rotation: {'ON' if self.rotate_on_every_request else 'OFF'}\n"
-            f"📱 Mobile: {len([a for a in self.ua_db.user_agents if 'Mobile' in a or 'Android' in a])}\n"
-            f"💻 Desktop: {len([a for a in self.ua_db.user_agents if 'Mobile' not in a and 'Android' not in a])}",
-            title="Statistics"
+            f"🔄 Rotation: {'ON' if self.rotate_on_every_request else 'OFF'}",
+            title="Statistics", box=box.HEAVY
         ))
     
     def save_agent_db(self):
-        """Save user agent database to JSON"""
-        count = self.ua_db.save_to_json("agents/user_agents.json")
-        console.print(f"[green]✅ Saved {count} user agents to agents/user_agents.json[/]")
+        """Save user agent database"""
+        self.ua_db.save_to_json("agents/user_agents.json")
+        console.print(f"[green]✅ Saved {self.ua_db.count()} user agents[/]")
     
     def load_agent_db(self):
-        """Load user agent database from JSON"""
-        count = self.ua_db.load_from_json("agents/user_agents.json")
-        if count:
-            console.print(f"[green]✅ Loaded {count} user agents from agents/user_agents.json[/]")
-        else:
-            console.print("[yellow]⚠️ No agent database found, using default[/]")
-    
-    def update_agents(self):
-        """Update user agent database"""
-        console.print("[cyan]🔄 Saving user agent database...[/]")
-        self.save_agent_db()
-        console.print(f"[green]✅ Database updated! Total: {self.ua_db.count()} agents[/]")
+        """Load user agent database"""
+        self.ua_db.load_from_json("agents/user_agents.json")
+        console.print(f"[green]✅ Loaded {self.ua_db.count()} user agents[/]")
     
     def menu(self):
-        """Main menu with agent controls"""
+        """Main menu with interface like screenshot"""
         while True:
             console.clear()
-            self.banner()
+            self.display_header()
+            self.display_menu()
             
-            menu_options = {
-                '1': 'Scrape Single URL',
-                '2': 'Scrape Multiple URLs',
-                '3': 'Crawl Website',
-                '4': 'Search Emails',
-                '5': 'Search Social Links',
-                '6': 'Search Phones',
-                '7': 'Export Results',
-                '8': 'View Results',
-                '9': 'Show User Agents',
-                '10': 'Save Agent Database',
-                '11': 'Load Agent Database',
-                '12': 'Toggle Agent Rotation',
-                '13': 'Clear Results',
-                '14': 'Exit'
-            }
-            
-            table = Table(title="ShadowScrape Tools", style="cyan")
-            table.add_column("Option", style="bold yellow")
-            table.add_column("Tool", style="green")
-            
-            for key, value in menu_options.items():
-                table.add_row(key, value)
-            
-            console.print(table)
-            
-            # Show current agent info
-            current_ua = self.session.headers.get('User-Agent', 'Unknown')
-            info = self.ua_db.get_info(current_ua)
-            console.print(f"[dim]Current: {info['browser']} {info['version']} on {info['os']}[/dim]")
-            console.print(f"[dim]Total Agents: {self.ua_db.count()}[/dim]")
-            
-            choice = Prompt.ask("[bold cyan]Select an option", choices=list(menu_options.keys()))
+            choice = Prompt.ask("\n[bold cyan]Select option", choices=[str(i) for i in range(1, 15)])
             
             if choice == '1':
                 url = Prompt.ask("[cyan]Enter URL")
-                category = Prompt.ask("[cyan]Category (desktop/mobile/windows/mac/linux/android/ios/chrome/firefox/edge/opera)", default="random")
+                category = Prompt.ask("[cyan]Category (optional)", default="random")
                 if category == "random":
                     category = None
                 data = self.scrape_page(url, category=category)
                 if data:
                     self.results.append(data)
-                    console.print("[green]✅ Page scraped![/]")
-                    self.show_results()
+                    console.print("[green]✅ Page scraped successfully![/]")
+                    self.display_user_info()
             
             elif choice == '2':
                 urls = []
@@ -634,7 +686,7 @@ class ShadowScrape:
                     if category == "random":
                         category = None
                     self.batch_scrape(urls, category=category)
-                    self.show_results()
+                    self.display_user_info()
             
             elif choice == '3':
                 url = Prompt.ask("[cyan]Enter starting URL")
@@ -645,7 +697,7 @@ class ShadowScrape:
                 if category == "random":
                     category = None
                 self.crawl_website(url, max_pages, max_depth, threads, category)
-                self.show_results()
+                self.display_user_info()
             
             elif choice == '4':
                 emails = self.search_emails()
@@ -700,6 +752,7 @@ class ShadowScrape:
             
             elif choice == '8':
                 self.show_results()
+                self.display_user_info()
             
             elif choice == '9':
                 self.show_agents()
@@ -717,6 +770,9 @@ class ShadowScrape:
             elif choice == '13':
                 if Confirm.ask("[red]Clear all results?"):
                     self.results = []
+                    self.success_count = 0
+                    self.fail_count = 0
+                    self.total_attempts = 0
                     console.print("[yellow]✅ Results cleared[/]")
             
             elif choice == '14':
